@@ -5,15 +5,15 @@ import copy
 class MancalaBoard:
     def __init__(self):
         self.board = {
-            'A': 4, 'B': 4, 'C': 4, 'D': 4, 'E': 4, 'F': 4,
-            'G': 4, 'H': 4, 'I': 4, 'J': 4, 'K': 4, 'L': 4,
-            1: 0, 2: 0
+            'A': 4, 'B': 4, 'C': 4, 'D': 4, 'E': 4, 'F': 4, 1: 0,
+            'L': 4, 'K': 4, 'J': 4, 'I': 4, 'H': 4, 'G': 4,
+            2: 0
         }
         self.player1_pits = ('A', 'B', 'C', 'D', 'E', 'F')
         self.player2_pits = ('G', 'H', 'I', 'J', 'K', 'L')
         self.opposite_pits = {
-            'A': 'L', 'B': 'K', 'C': 'J', 'D': 'I', 'E': 'H', 'F': 'G',
-            'G': 'F', 'H': 'E', 'I': 'D', 'J': 'C', 'K': 'B', 'L': 'A'
+            'A': 'G', 'B': 'H', 'C': 'I', 'D': 'J', 'E': 'K', 'F': 'L',
+            'G': 'A', 'H': 'B', 'I': 'C', 'J': 'D', 'K': 'E', 'L': 'F'
         }
 
     def possibleMoves(self, player):
@@ -32,12 +32,16 @@ class MancalaBoard:
                 continue
             self.board[next_pit] += 1
             seeds -= 1
-        if next_pit in self.player1_pits if player == 1 else self.player2_pits:
+        if next_pit in (self.player1_pits if player == 1 else self.player2_pits):
             if self.board[next_pit] == 1:
                 opposite_pit = self.opposite_pits[next_pit]
                 captured_seeds = self.board[opposite_pit]
                 self.board[opposite_pit] = 0
                 store = 1 if player == 1 else 2
+                print("store:", store)
+                print("captured_seeds:", captured_seeds)
+                
+
                 self.board[store] += captured_seeds + 1
                 self.board[next_pit] = 0
 
@@ -101,11 +105,11 @@ class MancalaGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Mancala Game")
-        self.root.geometry("900x400")  # Adjust size for better visibility
+        self.root.geometry("1000x400")  # Adjust size for better visibility
         self.game = Game()
 
         # Create the frame for the Mancala board
-        self.board_frame = tk.Frame(self.root, bg="lightblue", padx=10, pady=10)
+        self.board_frame = tk.Frame(self.root, bg="lightgray", padx=10, pady=10)
         self.board_frame.pack(expand=True, fill="both")
 
         # Create stores and pits
@@ -116,35 +120,37 @@ class MancalaGUI:
         for i, pit in enumerate(self.game.state.player2_pits):
             self.buttons[pit] = tk.Button(
                 self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
-                font=("Arial", 14), state="disabled", width=8, height=3, bg="lightgray"
+                font=("Arial", 14), state="disabled", width=8, height=3, bg="lightgreen"
             )
             self.buttons[pit].grid(row=0, column=i + 1, padx=5, pady=5)
+
+        # Player 1's store
+        self.stores[1] = tk.Label(
+            self.board_frame, text=f"Store 1: {self.game.state.board[1]}",
+            font=("Arial", 14), bg="lightblue", width=12, height=5, relief="ridge"
+        )
+        self.stores[1].grid(row=1, column=7)
 
         # Player 1's pits
         for i, pit in enumerate(self.game.state.player1_pits):
             self.buttons[pit] = tk.Button(
                 self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
                 font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
-                width=8, height=3, bg="lightgray"
+                width=8, height=3, bg="lightblue"
             )
             self.buttons[pit].grid(row=2, column=i + 1, padx=5, pady=5)
 
-        # Player 1's store
-        self.stores[1] = tk.Label(
-            self.board_frame, text=f"Store 1: {self.game.state.board[1]}",
-            font=("Arial", 14), bg="white", width=12, height=5, relief="ridge"
-        )
-        self.stores[1].grid(row=1, column=0)
+        
 
         # Player 2's store
         self.stores[2] = tk.Label(
             self.board_frame, text=f"Store 2: {self.game.state.board[2]}",
-            font=("Arial", 14), bg="white", width=12, height=5, relief="ridge"
+            font=("Arial", 14), bg="lightgreen", width=12, height=5, relief="ridge"
         )
-        self.stores[2].grid(row=1, column=7)
+        self.stores[2].grid(row=1, column=0)
 
         # Status label
-        self.status_label = tk.Label(self.root, text="Your turn!", font=("Arial", 16))
+        self.status_label = tk.Label(self.root, text="Your turn!", font=("Arial", 16), bg="red")
         self.status_label.pack(pady=10)
 
     def updateBoard(self):
@@ -162,7 +168,7 @@ class MancalaGUI:
         if self.game.gameOver():
             self.endGame()
             return
-        self.status_label.config(text="Computer's turn...")
+        self.status_label.config(text="Computer's turn...",bg="green")
         self.root.after(1000, self.computerTurn)
 
     def computerTurn(self):
@@ -172,7 +178,7 @@ class MancalaGUI:
         if self.game.gameOver():
             self.endGame()
             return
-        self.status_label.config(text="Your turn!")
+        self.status_label.config(text="Your turn!",bg="red")
 
     def endGame(self):
         winner, score = self.game.findWinner()
