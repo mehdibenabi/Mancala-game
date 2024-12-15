@@ -214,7 +214,7 @@ class Play:
         self.current_player = self.current_player % 2 + 1
  
 
-        self.root.after(2000, self.computerTurnLoop)
+        self.root.after(1000, self.computerTurnLoop)
 
     def startGame(self, starting_player):
         self.current_player = starting_player
@@ -261,24 +261,42 @@ class Play:
 
         self.buttons = {}
         self.stores = {}
+        if self.mode == "Computer vs Computer":
+            for i, pit in enumerate(self.game.state.player2_pits):
+                self.buttons[pit] = tk.Button(
+                self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
+                font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
+                state="disabled",  
+                width=8, height=3, bg="lightgreen"
+                )
+                self.buttons[pit].grid(row=0, column=i + 1, padx=5, pady=5)
 
-        for i, pit in enumerate(self.game.state.player2_pits):
-            self.buttons[pit] = tk.Button(
-            self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
-            font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
-            state="normal" if self.player_choice == 2 else "disabled",  
-            width=8, height=3, bg="lightgreen"
-            )
-            self.buttons[pit].grid(row=0, column=i + 1, padx=5, pady=5)
+            for i, pit in enumerate(self.game.state.player1_pits):
+                self.buttons[pit] = tk.Button(
+                self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
+                font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
+                state="disabled",  
+                width=8, height=3, bg="lightblue"
+                )
+                self.buttons[pit].grid(row=2, column=i + 1, padx=5, pady=5)
+        else:
+            for i, pit in enumerate(self.game.state.player2_pits):
+                self.buttons[pit] = tk.Button(
+                self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
+                font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
+                state="normal" if self.player_choice == 2 else "disabled",  
+                width=8, height=3, bg="lightgreen"
+                )
+                self.buttons[pit].grid(row=0, column=i + 1, padx=5, pady=5)
 
-        for i, pit in enumerate(self.game.state.player1_pits):
-            self.buttons[pit] = tk.Button(
-            self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
-            font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
-            state="normal" if self.player_choice == 1 else "disabled",  
-            width=8, height=3, bg="lightblue"
-            )
-            self.buttons[pit].grid(row=2, column=i + 1, padx=5, pady=5)
+            for i, pit in enumerate(self.game.state.player1_pits):
+                self.buttons[pit] = tk.Button(
+                self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
+                font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
+                state="normal" if self.player_choice == 1 else "disabled",  
+                width=8, height=3, bg="lightblue"
+                )
+                self.buttons[pit].grid(row=2, column=i + 1, padx=5, pady=5)
 
 
         self.stores[1] = tk.Label(
