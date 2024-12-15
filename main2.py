@@ -61,7 +61,13 @@ class Game:
         return False
 
     def findWinner(self):
-        return (1, self.state.board[1]) if self.state.board[1] > self.state.board[2] else (2, self.state.board[2])
+        if self.state.board[1] > self.state.board[2]:
+            return (1, self.state.board[1])
+        elif self.state.board[2] > self.state.board[1]:
+            return (2, self.state.board[2])
+        else:
+            return (0, "égalité")
+
 
     def evaluate(self):
         return self.state.board[1] - self.state.board[2]
@@ -363,10 +369,17 @@ class Play:
     
 
     def endGame(self):
-        winner, score = self.game.findWinner()
-        winner_name = "Player 1" if winner == 1 else "Player 2 (Computer)"
+        winner, score = self.game.findWinner()  
+        if winner == 1:
+            winner_name = "Player 1"
+        elif winner == 2:
+            winner_name = "Player 2"
+        else:
+            winner_name = "Player 1 = Player 2"
+
         messagebox.showinfo("Game Over", f"{winner_name} wins with a score of {score}!")
         self.root.quit()
+
 
     def run(self):
         self.root.mainloop()
