@@ -65,36 +65,63 @@ class Game:
 
     def evaluate(self):
         return self.state.board[1] - self.state.board[2]
+    
+    def evaluate2(self):
+    
+        score = self.state.board[1] - self.state.board[2]
+        for pit in self.state.player1_pits:  # Évalue les opportunités de Player 1
+            if self.state.board[pit] == 1:  # Opportunité de capture
+                opposite_pit = self.state.opposite_pits[pit]
+                score += self.state.board[opposite_pit]
+        for pit in self.state.player2_pits:  # Évalue les opportunités de Player 2
+            if self.state.board[pit] == 1:
+                opposite_pit = self.state.opposite_pits[pit]
+                score -= self.state.board[opposite_pit]
+        return score
 
+def MinimaxAlphaBetaPruning(play, game, player, depth, alpha, beta, use_heuristic2=False):
+        if game.gameOver() or depth == 0:
+            
+            if use_heuristic2:
+                return game.evaluate2(), None
+            return game.evaluate(), None
 
-def MinimaxAlphaBetaPruning(game, player, depth, alpha, beta):
-    if game.gameOver() or depth == 0:
-        return game.evaluate(), None
+        
+        best_value = float('-inf') if player == play.player_choice else float('inf')
+            
+        best_pit = None
+        moves = game.state.possibleMoves(player)
 
-    best_value = float('-inf') if player == 1 else float('inf')
-    best_pit = None
-    moves = game.state.possibleMoves(player)
+        for pit in moves:
+            new_game = copy.deepcopy(game)
+            new_game.state.doMove(player, pit)
+            if play.mode == "Computer vs Computer":
+                value, _ = MinimaxAlphaBetaPruning(
+                    play, new_game, -player, depth - 1, alpha, beta, use_heuristic2=(player == -1)
+                )
+            else:
+                value, _ = MinimaxAlphaBetaPruning(
+                    play, new_game, -player, depth - 1, alpha, beta, use_heuristic2=False
+                )
+            
+            if player == play.player_choice:
+                if value > best_value:
+                    best_value = value
+                    best_pit = pit
+                alpha = max(alpha, best_value)
+                
+            else:
+                if value < best_value:
+                    best_value = value
+                    best_pit = pit
+                beta = min(beta, best_value)
+                
 
-    for pit in moves:
-        new_game = copy.deepcopy(game)
-        new_game.state.doMove(player, pit)
-        value, _ = MinimaxAlphaBetaPruning(new_game, -player, depth - 1, alpha, beta)
+            if alpha >= beta:
+                break
+            
+        return best_value, best_pit
 
-        if player == 1:
-            if value > best_value:
-                best_value = value
-                best_pit = pit
-            alpha = max(alpha, best_value)
-        else:
-            if value < best_value:
-                best_value = value
-                best_pit = pit
-            beta = min(beta, best_value)
-
-        if alpha >= beta:
-            break
-
-    return best_value, best_pit
 
 
 class Play:
@@ -103,10 +130,41 @@ class Play:
         self.root.title("Mancala Game")
         self.root.geometry("1000x400")
         self.game = Game()
-        self.player_choice = 1  # Default to Player 1
-        self.current_player = 1  # Default to Player 1 starts
+        self.player_choice = 1  
+        self.current_player = 1  
+        self.mode = "Human vs Computer" 
+        self.initModeSelection()
 
-        self.initMenu()
+    
+
+    def initModeSelection(self):
+        mode_frame = tk.Frame(self.root, bg="lightblue", padx=10, pady=10)
+        mode_frame.pack(expand=True, fill="both")
+
+        label = tk.Label(mode_frame, text="Select Game Mode", font=("Arial", 16), bg="lightblue")
+        label.pack(pady=20)
+
+        human_vs_computer_button = tk.Button(
+            mode_frame, text="Human vs Computer", font=("Arial", 14), 
+            command=lambda: self.setMode("Human vs Computer"), width=20
+        )
+        human_vs_computer_button.pack(pady=10)
+
+        computer_vs_computer_button = tk.Button(
+            mode_frame, text="Computer vs Computer", font=("Arial", 14), 
+            command=lambda: self.setMode("Computer vs Computer"), width=20
+        )
+        computer_vs_computer_button.pack(pady=10)
+
+    def setMode(self, mode):
+        self.mode = mode
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        if self.mode == "Human vs Computer":
+            self.initMenu()
+        else:
+            self.startGameForComputers()
 
     def initMenu(self):
         menu_frame = tk.Frame(self.root, bg="lightblue", padx=10, pady=10)
@@ -124,6 +182,52 @@ class Play:
             menu_frame, text="Player 2", font=("Arial", 14), command=lambda: self.chooseFirstPlayer(-1), width=15
         )
         player2_button.pack(pady=10)
+
+    def startGameForComputers(self):
+        self.player_choice = 1  
+        self.current_player = 1
+
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        self.setupBoard()
+        self.status_label.config(text="Computer vs Computer Mode", bg="orange")
+        self.root.after(1000, self.computerTurnLoop)
+
+    def computerTurnLoop(self):
+        if self.game.gameOver():
+            self.endGame()
+            return
+
+        _, pit = MinimaxAlphaBetaPruning(self, 
+                self.game, self.current_player, 3, float('-inf'), float('inf'),
+                use_heuristic2=(self.current_player == -1)  ) 
+        self.status_label.config(
+        text="Computer 1" if self.current_player == 1 else "Computer 2", 
+        bg="lightblue" if self.current_player == 1 else "lightgreen"
+        )
+        print(f"Computer {self.current_player} chooses pit {pit}")
+        self.game.state.doMove(self.current_player, pit) 
+
+        self.updateBoard()
+        
+
+        self.current_player *= -1 
+
+        self.root.after(2000, self.computerTurnLoop)
+
+    def startGame(self, starting_player):
+        self.current_player = starting_player
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        self.setupBoard()
+
+        if self.mode == "Human vs Computer" and self.current_player != self.player_choice:
+            self.status_label.config(text="Computer's turn...", bg="green")
+            self.root.after(1000, self.computerTurn)
+
+   
+
 
     def chooseFirstPlayer(self, choice):
         self.player_choice = choice
@@ -148,14 +252,7 @@ class Play:
         )
         player2_start_button.pack(pady=10)
 
-    def startGame(self, starting_player):
-        self.current_player = starting_player
-        for widget in self.root.winfo_children():
-            widget.destroy()
-        self.setupBoard()
-
-        if self.current_player == -1:
-            self.root.after(1000, self.computerTurn)
+    
 
     def setupBoard(self):
         self.board_frame = tk.Frame(self.root, bg="lightgray", padx=10, pady=10)
@@ -166,11 +263,22 @@ class Play:
 
         for i, pit in enumerate(self.game.state.player2_pits):
             self.buttons[pit] = tk.Button(
-                self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
-                font=("Arial", 14), command=lambda p=pit: self.humanTurn(p) if self.player_choice == -1 else None,
-                state="normal" if self.player_choice == -1 else "disabled", width=8, height=3, bg="lightgreen"
+            self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
+            font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
+            state="normal" if self.player_choice == -1 else "disabled",  
+            width=8, height=3, bg="lightgreen"
             )
             self.buttons[pit].grid(row=0, column=i + 1, padx=5, pady=5)
+
+        for i, pit in enumerate(self.game.state.player1_pits):
+            self.buttons[pit] = tk.Button(
+            self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
+            font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
+            state="normal" if self.player_choice == 1 else "disabled",  
+            width=8, height=3, bg="lightblue"
+            )
+            self.buttons[pit].grid(row=2, column=i + 1, padx=5, pady=5)
+
 
         self.stores[1] = tk.Label(
             self.board_frame, text=f"Store 1: {self.game.state.board[1]}",
@@ -178,13 +286,7 @@ class Play:
         )
         self.stores[1].grid(row=1, column=7)
 
-        for i, pit in enumerate(self.game.state.player1_pits):
-            self.buttons[pit] = tk.Button(
-                self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
-                font=("Arial", 14), command=lambda p=pit: self.humanTurn(p) if self.player_choice == 1 else None,
-                state="normal" if self.player_choice == 1 else "disabled", width=8, height=3, bg="lightblue"
-            )
-            self.buttons[pit].grid(row=2, column=i + 1, padx=5, pady=5)
+        
 
         self.stores[2] = tk.Label(
             self.board_frame, text=f"Store 2: {self.game.state.board[2]}",
@@ -194,7 +296,7 @@ class Play:
 
         self.status_label = tk.Label(
             self.root,
-            text="Your turn!" if self.current_player == 1 else "Computer's turn...",
+            text="Your turn!" if self.current_player == self.player_choice else "Computer's turn...",
             font=("Arial", 16), bg="red"
         )
         self.status_label.pack(pady=10)
@@ -204,6 +306,11 @@ class Play:
             self.buttons[pit].config(text=f"{pit}\n{self.game.state.board[pit]}")
         self.stores[1].config(text=f"Store 1: {self.game.state.board[1]}")
         self.stores[2].config(text=f"Store 2: {self.game.state.board[2]}")
+        
+    def toggleButtons(self, player, state):
+        pits = self.game.state.player1_pits if player == 1 else self.game.state.player2_pits
+        for pit in pits:
+            self.buttons[pit].config(state=state)
 
     def humanTurn(self, pit):
         if pit not in self.game.state.possibleMoves(self.player_choice):
@@ -214,17 +321,27 @@ class Play:
         if self.game.gameOver():
             self.endGame()
             return
-        self.status_label.config(text="Computer's turn...", bg="green")
+        self.toggleButtons(self.player_choice, state="disabled")
+        self.status_label.config(
+        text="Computer's turn..." ,
+        bg="green" 
+    )
         self.root.after(1000, self.computerTurn)
 
     def computerTurn(self):
-        _, pit = MinimaxAlphaBetaPruning(self.game, -self.player_choice, 3, float('-inf'), float('inf'))
+        _, pit = MinimaxAlphaBetaPruning(self, self.game, -self.player_choice, 3, float('-inf'), float('inf'))
         self.game.state.doMove(-self.player_choice, pit)
         self.updateBoard()
         if self.game.gameOver():
             self.endGame()
             return
-        self.status_label.config(text="Your turn!", bg="red")
+        self.toggleButtons(self.player_choice, state="normal")
+        self.status_label.config(
+        text="Your turn!" ,
+        bg="red" 
+    )
+    
+    
 
     def endGame(self):
         winner, score = self.game.findWinner()
