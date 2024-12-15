@@ -45,7 +45,7 @@ class MancalaBoard:
 class Game:
     def __init__(self):
         self.state = MancalaBoard()
-        self.playerSide = {1: 'Player 1', -1: 'Player 2'}
+        self.playerSide = {1: 'Player 1', 2: 'Player 2'}
 
     def gameOver(self):
         player1_empty = all(self.state.board[pit] == 0 for pit in self.state.player1_pits)
@@ -61,25 +61,21 @@ class Game:
         return False
 
     def findWinner(self):
-        return (1, self.state.board[1]) if self.state.board[1] > self.state.board[2] else (-1, self.state.board[2])
+        return (1, self.state.board[1]) if self.state.board[1] > self.state.board[2] else (2, self.state.board[2])
 
     def evaluate(self):
         return self.state.board[1] - self.state.board[2]
     
     def evaluate2(self):
-    
         score = self.state.board[1] - self.state.board[2]
-        for pit in self.state.player1_pits:  # Évalue les opportunités de Player 1
-            if self.state.board[pit] == 1:  # Opportunité de capture
-                opposite_pit = self.state.opposite_pits[pit]
-                score += self.state.board[opposite_pit]
-        for pit in self.state.player2_pits:  # Évalue les opportunités de Player 2
-            if self.state.board[pit] == 1:
-                opposite_pit = self.state.opposite_pits[pit]
-                score -= self.state.board[opposite_pit]
+        player1_seeds = sum(self.state.board[pit] for pit in self.state.player1_pits)
+        player2_seeds = sum(self.state.board[pit] for pit in self.state.player2_pits)
+        score += (player1_seeds - player2_seeds) * 0.1
+
         return score
 
-def MinimaxAlphaBetaPruning(play, game, player, depth, alpha, beta, use_heuristic2=False):
+
+def MinimaxAlphaBetaPruning(play, game, player, depth, alpha, beta, use_heuristic2=False, maximum=True):
         if game.gameOver() or depth == 0:
             
             if use_heuristic2:
@@ -87,7 +83,8 @@ def MinimaxAlphaBetaPruning(play, game, player, depth, alpha, beta, use_heuristi
             return game.evaluate(), None
 
         
-        best_value = float('-inf') if player == play.player_choice else float('inf')
+        best_value = float('-inf') if maximum == True else float('inf')
+        
             
         best_pit = None
         moves = game.state.possibleMoves(player)
@@ -95,16 +92,17 @@ def MinimaxAlphaBetaPruning(play, game, player, depth, alpha, beta, use_heuristi
         for pit in moves:
             new_game = copy.deepcopy(game)
             new_game.state.doMove(player, pit)
+            player = player % 2 + 1
             if play.mode == "Computer vs Computer":
                 value, _ = MinimaxAlphaBetaPruning(
-                    play, new_game, -player, depth - 1, alpha, beta, use_heuristic2=(player == -1)
+                    play, new_game, player , depth - 1, alpha, beta, use_heuristic2=(player == 2), maximum= True if player == play.maxplayer else False
                 )
             else:
                 value, _ = MinimaxAlphaBetaPruning(
-                    play, new_game, -player, depth - 1, alpha, beta, use_heuristic2=False
+                    play, new_game, player, depth - 1, alpha, beta, use_heuristic2=False, maximum= True if player == play.maxplayer else False
                 )
             
-            if player == play.player_choice:
+            if maximum == True:
                 if value > best_value:
                     best_value = value
                     best_pit = pit
@@ -133,6 +131,7 @@ class Play:
         self.player_choice = 1  
         self.current_player = 1  
         self.mode = "Human vs Computer" 
+        self.maxplayer=1
         self.initModeSelection()
 
     
@@ -179,7 +178,7 @@ class Play:
         player1_button.pack(pady=10)
 
         player2_button = tk.Button(
-            menu_frame, text="Player 2", font=("Arial", 14), command=lambda: self.chooseFirstPlayer(-1), width=15
+            menu_frame, text="Player 2", font=("Arial", 14), command=lambda: self.chooseFirstPlayer(2), width=15
         )
         player2_button.pack(pady=10)
 
@@ -201,7 +200,7 @@ class Play:
 
         _, pit = MinimaxAlphaBetaPruning(self, 
                 self.game, self.current_player, 3, float('-inf'), float('inf'),
-                use_heuristic2=(self.current_player == -1)  ) 
+                use_heuristic2=(self.current_player == 2), maximum=True if self.current_player == self.maxplayer else False) 
         self.status_label.config(
         text="Computer 1" if self.current_player == 1 else "Computer 2", 
         bg="lightblue" if self.current_player == 1 else "lightgreen"
@@ -212,7 +211,8 @@ class Play:
         self.updateBoard()
         
 
-        self.current_player *= -1 
+        self.current_player = self.current_player % 2 + 1
+ 
 
         self.root.after(2000, self.computerTurnLoop)
 
@@ -231,6 +231,7 @@ class Play:
 
     def chooseFirstPlayer(self, choice):
         self.player_choice = choice
+        self.maxplayer = choice%2+1
         for widget in self.root.winfo_children():
             widget.destroy()
 
@@ -248,7 +249,7 @@ class Play:
 
         player2_start_button = tk.Button(
             first_player_frame, text="Player 2 Starts", font=("Arial", 14),
-            command=lambda: self.startGame(-1), width=15
+            command=lambda: self.startGame(2), width=15
         )
         player2_start_button.pack(pady=10)
 
@@ -265,7 +266,7 @@ class Play:
             self.buttons[pit] = tk.Button(
             self.board_frame, text=f"{pit}\n{self.game.state.board[pit]}",
             font=("Arial", 14), command=lambda p=pit: self.humanTurn(p),
-            state="normal" if self.player_choice == -1 else "disabled",  
+            state="normal" if self.player_choice == 2 else "disabled",  
             width=8, height=3, bg="lightgreen"
             )
             self.buttons[pit].grid(row=0, column=i + 1, padx=5, pady=5)
@@ -329,8 +330,8 @@ class Play:
         self.root.after(1000, self.computerTurn)
 
     def computerTurn(self):
-        _, pit = MinimaxAlphaBetaPruning(self, self.game, -self.player_choice, 3, float('-inf'), float('inf'))
-        self.game.state.doMove(-self.player_choice, pit)
+        _, pit = MinimaxAlphaBetaPruning(self, self.game, self.maxplayer, 3, float('-inf'), float('inf'), use_heuristic2=False, maximum=True)
+        self.game.state.doMove(self.maxplayer, pit)
         self.updateBoard()
         if self.game.gameOver():
             self.endGame()
